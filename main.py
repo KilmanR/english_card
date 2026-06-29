@@ -1,7 +1,7 @@
 import streamlit as st
 import random
+from models import init_db
 from db import (
-    init_db,
     get_or_create_user,
     get_common_words,
     get_user_words,
@@ -9,18 +9,16 @@ from db import (
     delete_word,
     update_word_stats,
     get_user_stats,
-    get_user_personal_words
+    get_user_personal_words,
 )
-from models import get_engine
-from sqlalchemy import inspect
 
 st.set_page_config(page_title="EnglishCard", page_icon="📚")
 
-if 'user' not in st.session_state:
+if "user" not in st.session_state:
     st.session_state.user = None
-if 'current_word' not in st.session_state:
+if "current_word" not in st.session_state:
     st.session_state.current_word = None
-if 'options' not in st.session_state:
+if "options" not in st.session_state:
     st.session_state.options = []
 
 
@@ -60,8 +58,13 @@ def show_menu():
 
         menu = st.radio(
             "Меню",
-            ["🎯 Тренировка", "➕ Добавить слово",
-             "🗑️ Удалить слово", "📊 Статистика", "🚪 Выйти"]
+            [
+                "🎯 Тренировка",
+                "➕ Добавить слово",
+                "🗑️ Удалить слово",
+                "📊 Статистика",
+                "🚪 Выйти",
+            ],
         )
 
         if menu == "🚪 Выйти":
@@ -95,21 +98,20 @@ def training_page():
 
         # Генерируем варианты ответов
         all_words = get_common_words()
-        other_words = [w for w in all_words
-                       if w.id != st.session_state.current_word.id]
+        other_words = [w for w in all_words if w.id != st.session_state.current_word.id]
         wrong_options = random.sample(other_words, min(3, len(other_words)))
-        
+
         options = [st.session_state.current_word] + wrong_options
         random.shuffle(options)
         st.session_state.options = options
         st.rerun()
 
     current = st.session_state.current_word
-    
+
     # Если ещё не показали результат — показываем кнопки
     if not st.session_state.show_result:
         st.markdown(f"### Переведите слово: **{current.word_ru}**")
-        
+
         cols = st.columns(2)
         for i, option in enumerate(st.session_state.options):
             with cols[i % 2]:
@@ -117,28 +119,24 @@ def training_page():
                     is_correct = option.id == current.id
                     st.session_state.show_result = True
                     st.session_state.is_correct = is_correct
-                    
-                    update_word_stats(
-                        st.session_state.user.id,
-                        current.id,
-                        is_correct
-                    )
+
+                    update_word_stats(st.session_state.user.id, current.id, is_correct)
                     st.rerun()
     else:
         # Показываем результат и кнопку продолжения
         st.markdown(f"### Переведите слово: **{current.word_ru}**")
-        
+
         if st.session_state.is_correct:
             st.success("✅ Правильно! Молодец!")
         else:
             st.error(f"❌ Неверно. Правильный ответ: **{current.word_en}**")
-        
+
         st.divider()
         if st.button("➡️ Следующее слово", type="primary"):
             st.session_state.current_word = None
             st.session_state.show_result = False
             st.rerun()
-       
+
 
 def add_word_page():
     """Страница добавления слова"""
@@ -152,11 +150,7 @@ def add_word_page():
 
     if st.button("Добавить слово"):
         if word_en.strip() and word_ru.strip():
-            add_word(
-                word_en.strip(),
-                word_ru.strip(),
-                st.session_state.user.id
-            )
+            add_word(word_en.strip(), word_ru.strip(), st.session_state.user.id)
             st.success(f"✅ Слово '{word_en}' добавлено!")
             st.balloons()
         else:
@@ -173,15 +167,9 @@ def delete_word_page():
         st.info("У вас нет личных слов для удаления.")
         return
 
-    word_options = {
-        f"{word.word_en} - {word.word_ru}": word.id
-        for word in user_words
-    }
+    word_options = {f"{word.word_en} - {word.word_ru}": word.id for word in user_words}
 
-    selected = st.selectbox(
-        "Выберите слово для удаления:",
-        list(word_options.keys())
-    )
+    selected = st.selectbox("Выберите слово для удаления:", list(word_options.keys()))
 
     if st.button("Удалить"):
         word_id = word_options[selected]
@@ -196,21 +184,20 @@ def stats_page():
 
     stats = get_user_stats(st.session_state.user.id)
 
-    if stats['total_words']:
+    if stats["total_words"]:
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.metric("Всего слов", stats['total_words'])
+            st.metric("Всего слов", stats["total_words"])
 
         with col2:
-            st.metric("Правильных ответов", stats['total_correct'])
+            st.metric("Правильных ответов", stats["total_correct"])
 
         with col3:
             accuracy = 0.0
-            if stats['total_attempts'] > 0:
+            if stats["total_attempts"] > 0:
                 accuracy = round(
-                    (stats['total_correct'] / stats['total_attempts']) * 100,
-                    1
+                    (stats["total_correct"] / stats["total_attempts"]) * 100, 1
                 )
             st.metric("Точность", f"{accuracy}%")
 
