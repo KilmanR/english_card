@@ -135,7 +135,7 @@ streamlit run main.py
     Driver: psycopg2
 
 📁 Структура проекта
-
+```
 english_card/
 ├── main.py              # Streamlit приложение
 ├── db.py                # Функции работы с БД
@@ -144,7 +144,7 @@ english_card/
 ├── fill_data.sql        # Тестовые данные
 ├── requirements.txt     # Зависимости
 └── README.md           # Документация
-
+```
 👨‍💻 Автор
 Александр Р.
 📝 Лицензия
