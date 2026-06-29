@@ -26,39 +26,45 @@ cd english_card
 
 ###  2. Создание виртуального окружения
 
+```
 python3 -m venv .venv
 source .venv/bin/activate  # Для Linux/Mac
+```
 # или
+```
 .venv\Scripts\activate  # Для Windows
-
+```
 
 ### 3. Установка зависимостей
-
+```
 pip install -r requirements.txt
-
+```
 
 ### 4. Настройка базы данных
 
 
 # Создайте базу данных
+```
 sudo -u postgres psql
-
+```
 # В PostgreSQL выполните:
+```
 CREATE DATABASE english_card_db;
 \q
-
+```
 # Инициализируйте таблицы (опционально, создадутся автоматически при запуске)
+```
 python3 -c "from models import init_db; init_db()"
-
+```
 
 ###  5. Заполнение тестовыми данными (опционально)
-
+```
 sudo -u postgres psql -d english_card_db -f fill_data.sql
-
+```
 ### 6. Запуск приложения
-
+```
 streamlit run main.py
-
+```
 Приложение откроется по адресу: http://localhost:8501
 
 📖 Использование
