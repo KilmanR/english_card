@@ -1,4 +1,3 @@
-cat > .gitignore << 'EOF'
 # Виртуальное окружение
 .venv/
 venv/
@@ -13,6 +12,9 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+# Linter
+.flake8
 
 # Streamlit
 .streamlit/secrets.toml
@@ -30,4 +32,3 @@ Thumbs.db
 
 # Локальные настройки
 .env
-EOF
