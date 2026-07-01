@@ -1,9 +1,9 @@
 import streamlit as st
 import random
+from sqlalchemy.exc import SQLAlchemyError
 from models import init_db
 from db import (
     get_or_create_user,
-    get_common_words,
     get_user_words,
     add_word,
     delete_word,
@@ -14,20 +14,25 @@ from db import (
 
 st.set_page_config(page_title="EnglishCard", page_icon="📚")
 
+if "db_initialized" not in st.session_state:
+    init_db()
+    st.session_state.db_initialized = True
+
 if "user" not in st.session_state:
     st.session_state.user = None
 if "current_word" not in st.session_state:
     st.session_state.current_word = None
 if "options" not in st.session_state:
     st.session_state.options = []
+if "show_result" not in st.session_state:
+    st.session_state.show_result = False
+if "is_correct" not in st.session_state:
+    st.session_state.is_correct = False
 
 
 def main():
-    """Основная функция приложения"""
     st.title("📚 EnglishCard")
     st.markdown("### Приложение для изучения английского языка")
-
-    init_db()
 
     if st.session_state.user is None:
         show_welcome()
@@ -36,22 +41,26 @@ def main():
 
 
 def show_welcome():
-    """Показывает приветственный экран"""
     st.markdown("### Добро пожаловать!")
     st.markdown("Введите ваше имя для начала:")
 
     username = st.text_input("Ваше имя:", key="username_input")
 
     if st.button("Начать изучение"):
-        if username.strip():
-            st.session_state.user = get_or_create_user(username.strip())
-            st.rerun()
-        else:
+        username = username.strip()
+        if not username:
             st.warning("Пожалуйста, введите имя!")
+        elif len(username) > 100:
+            st.error("Имя не должно превышать 100 символов!")
+        else:
+            try:
+                st.session_state.user = get_or_create_user(username)
+                st.rerun()
+            except SQLAlchemyError:
+                st.error("Ошибка при создании пользователя. Попробуйте ещё раз.")
 
 
 def show_menu():
-    """Показывает главное меню"""
     with st.sidebar:
         st.write(f"👤 Пользователь: **{st.session_state.user.username}**")
         st.divider()
@@ -82,36 +91,36 @@ def show_menu():
 
 
 def training_page():
-    """Страница тренировки слов"""
     st.header("🎯 Тренировка слов")
 
-    words = get_user_words(st.session_state.user.id)
+    try:
+        words = get_user_words(st.session_state.user.id)
+    except SQLAlchemyError:
+        st.error("Ошибка при загрузке слов.")
+        return
 
     if not words:
         st.warning("У вас пока нет слов для тренировки. Добавьте слова!")
         return
 
-    # Если нет текущего слова — выбираем новое
     if st.session_state.current_word is None:
         st.session_state.current_word = random.choice(words)
         st.session_state.show_result = False
 
-        # Генерируем варианты ответов
-        all_words = get_common_words()
-        other_words = [w for w in all_words if w.id != st.session_state.current_word.id]
+        all_words = get_user_words(st.session_state.user.id)
+        other_words = [
+            w for w in all_words if w.id != st.session_state.current_word.id
+        ]
         wrong_options = random.sample(other_words, min(3, len(other_words)))
 
         options = [st.session_state.current_word] + wrong_options
         random.shuffle(options)
         st.session_state.options = options
-        st.rerun()
 
     current = st.session_state.current_word
+    st.markdown(f"### Переведите слово: **{current.word_ru}**")
 
-    # Если ещё не показали результат — показываем кнопки
     if not st.session_state.show_result:
-        st.markdown(f"### Переведите слово: **{current.word_ru}**")
-
         cols = st.columns(2)
         for i, option in enumerate(st.session_state.options):
             with cols[i % 2]:
@@ -120,12 +129,15 @@ def training_page():
                     st.session_state.show_result = True
                     st.session_state.is_correct = is_correct
 
-                    update_word_stats(st.session_state.user.id, current.id, is_correct)
+                    try:
+                        update_word_stats(
+                            st.session_state.user.id, current.id, is_correct
+                        )
+                    except SQLAlchemyError:
+                        st.error("Ошибка при сохранении результата.")
+
                     st.rerun()
     else:
-        # Показываем результат и кнопку продолжения
-        st.markdown(f"### Переведите слово: **{current.word_ru}**")
-
         if st.session_state.is_correct:
             st.success("✅ Правильно! Молодец!")
         else:
@@ -139,7 +151,6 @@ def training_page():
 
 
 def add_word_page():
-    """Страница добавления слова"""
     st.header("➕ Добавить новое слово")
 
     col1, col2 = st.columns(2)
@@ -149,19 +160,27 @@ def add_word_page():
         word_ru = st.text_input("Перевод на русский:", key="add_ru")
 
     if st.button("Добавить слово"):
-        if word_en.strip() and word_ru.strip():
-            add_word(word_en.strip(), word_ru.strip(), st.session_state.user.id)
-            st.success(f"✅ Слово '{word_en}' добавлено!")
-            st.balloons()
+        word_en = word_en.strip()
+        word_ru = word_ru.strip()
+        if word_en and word_ru:
+            try:
+                add_word(word_en, word_ru, st.session_state.user.id)
+                st.success(f"✅ Слово '{word_en}' добавлено!")
+                st.balloons()
+            except SQLAlchemyError:
+                st.error("Ошибка при добавлении слова.")
         else:
             st.warning("Заполните оба поля!")
 
 
 def delete_word_page():
-    """Страница удаления слова"""
     st.header("🗑️ Удалить слово")
 
-    user_words = get_user_personal_words(st.session_state.user.id)
+    try:
+        user_words = get_user_personal_words(st.session_state.user.id)
+    except SQLAlchemyError:
+        st.error("Ошибка при загрузке слов.")
+        return
 
     if not user_words:
         st.info("У вас нет личных слов для удаления.")
@@ -176,13 +195,18 @@ def delete_word_page():
         if delete_word(word_id, st.session_state.user.id):
             st.success("✅ Слово удалено!")
             st.rerun()
+        else:
+            st.error("Не удалось удалить слово. Оно может быть общим или уже удалено.")
 
 
 def stats_page():
-    """Страница статистики"""
     st.header("📊 Ваша статистика")
 
-    stats = get_user_stats(st.session_state.user.id)
+    try:
+        stats = get_user_stats(st.session_state.user.id)
+    except SQLAlchemyError:
+        st.error("Ошибка при загрузке статистики.")
+        return
 
     if stats["total_words"]:
         col1, col2, col3 = st.columns(3)
