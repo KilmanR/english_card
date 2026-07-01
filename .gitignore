@@ -30,5 +30,8 @@ build/
 .DS_Store
 Thumbs.db
 
+# SQLite
+*.db
+
 # Локальные настройки
 .env

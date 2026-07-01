@@ -1,7 +1,5 @@
 import atexit
-import os
 
-from dotenv import load_dotenv
 from sqlalchemy import (
     Column,
     Integer,
@@ -14,8 +12,6 @@ from sqlalchemy import (
     create_engine,
 )
 from sqlalchemy.orm import declarative_base, relationship
-
-load_dotenv()
 
 Base = declarative_base()
 
@@ -74,14 +70,10 @@ _engine = None
 def get_engine():
     global _engine
     if _engine is None:
-        db_url = (
-            f"postgresql://{os.getenv('DB_USER', 'postgres')}:"
-            f"{os.getenv('DB_PASSWORD', 'postgres')}@"
-            f"{os.getenv('DB_HOST', 'localhost')}:"
-            f"{os.getenv('DB_PORT', '5432')}/"
-            f"{os.getenv('DB_NAME', 'english_card_db')}"
+        _engine = create_engine(
+            "sqlite:///english_card.db",
+            connect_args={"check_same_thread": False},
         )
-        _engine = create_engine(db_url)
         atexit.register(_engine.dispose)
     return _engine
 
